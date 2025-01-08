@@ -2,6 +2,8 @@ package main
 
 import (
 	"github.com/goocarry/rest-ultimate/internal/config"
+	"github.com/goocarry/rest-ultimate/internal/lib/logger/sl"
+	"github.com/goocarry/rest-ultimate/internal/storage/sqlite"
 	"log/slog"
 	"os"
 )
@@ -14,6 +16,13 @@ func main() {
 	log.Info("starting...", slog.String("env", cfg.Env))
 	log.Debug("debug messages are enabled")
 
+	storage, err := sqlite.New(cfg.StoragePath)
+	if err != nil {
+		log.Error("cannot create storage", sl.Err(err))
+		os.Exit(1)
+	}
+
+	_ = storage
 }
 
 func setupLogger(env string) *slog.Logger {
