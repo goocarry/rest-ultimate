@@ -1,3 +1,7 @@
 package storage
 
-import "database/sql"
+import "errors"
+
+var (
+	ErrUserNotFound = errors.New("user not found")
+)

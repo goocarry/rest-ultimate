@@ -1,11 +1,21 @@
 package main
 
 import (
+	"context"
 	"github.com/goocarry/rest-ultimate/internal/config"
+	"github.com/goocarry/rest-ultimate/internal/http-server/handlers/user"
+	mwLog "github.com/goocarry/rest-ultimate/internal/http-server/middleware/logger"
 	"github.com/goocarry/rest-ultimate/internal/lib/logger/sl"
 	"github.com/goocarry/rest-ultimate/internal/storage/sqlite"
 	"log/slog"
+	"net/http"
 	"os"
+	"os/signal"
+	"syscall"
+	"time"
+
+	"github.com/go-chi/chi/v5"
+	"github.com/go-chi/chi/v5/middleware"
 )
 
 func main() {
@@ -23,6 +33,45 @@ func main() {
 	}
 
 	_ = storage
+
+	router := chi.NewRouter()
+	router.Use(middleware.RequestID)
+	router.Use(middleware.Logger)
+	router.Use(mwLog.New(log))
+	router.Use(middleware.Recoverer)
+
+	router.Route("/user", func(r chi.Router) {
+
+		r.Post("/register", user.New(log, storage))
+	})
+
+	srv := &http.Server{
+		Addr:         cfg.Address,
+		Handler:      router,
+		ReadTimeout:  cfg.HTTPServer.Timeout,
+		WriteTimeout: cfg.HTTPServer.Timeout,
+		IdleTimeout:  cfg.HTTPServer.IdleTimeout,
+	}
+
+	go func() {
+		if err := srv.ListenAndServe(); err != nil {
+			log.Error("failed to start server")
+		}
+	}()
+
+	log.Info("server started")
+
+	sigChan := make(chan os.Signal, 1)
+	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
+
+	sig := <-sigChan
+	log.Info("received signal, shutting down...", slog.String("signal", sig.String()))
+
+	_, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	log.Info("shutdown complete")
+
 }
 
 func setupLogger(env string) *slog.Logger {
