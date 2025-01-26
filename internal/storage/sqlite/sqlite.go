@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"github.com/goocarry/rest-ultimate/internal/storage"
 	"github.com/mattn/go-sqlite3"
 
 	_ "github.com/mattn/go-sqlite3"
@@ -13,7 +14,11 @@ type Storage struct {
 	db *sql.DB
 }
 
-func New(storagePath string) (*Storage, error) {
+func (s *Storage) User() storage.UserRepository {
+	return s
+}
+
+func New(storagePath string) (storage.Storage, error) {
 	const op = "storage.sqlite.New"
 
 	db, err := sql.Open("sqlite3", storagePath)
@@ -29,6 +34,7 @@ func New(storagePath string) (*Storage, error) {
 			second_name TEXT,
 			workplace TEXT,
 			phone TEXT,
+			email TEXT,
 			is_validated bool DEFAULT FALSE,
 			interests text[]           
 		);
@@ -44,7 +50,7 @@ func New(storagePath string) (*Storage, error) {
 	return &Storage{db: db}, nil
 }
 
-func (s *Storage) RegisterUser(tgUserId string) (int64, error) {
+func (s *Storage) RegisterUser(user storage.User) (int64, error) {
 	const op = "storage.sqlite.RegisterUser"
 
 	stmt, err := s.db.Prepare("INSERT INTO main.user(tg_user_id) VALUES(?)")
@@ -52,7 +58,7 @@ func (s *Storage) RegisterUser(tgUserId string) (int64, error) {
 		return 0, fmt.Errorf("%s: %w", op, err)
 	}
 
-	res, err := stmt.Exec(tgUserId)
+	res, err := stmt.Exec(user.TgUserId)
 	if err != nil {
 		var sqliteErr sqlite3.Error
 		if errors.As(err, &sqliteErr) && errors.Is(sqliteErr.ExtendedCode, sqlite3.ErrConstraintUnique) {
@@ -68,4 +74,8 @@ func (s *Storage) RegisterUser(tgUserId string) (int64, error) {
 	}
 
 	return id, nil
+}
+
+func (s *Storage) GetUserByTelegramID(telegramID int64) (*storage.User, error) {
+	return nil, nil
 }

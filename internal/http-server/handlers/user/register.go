@@ -5,6 +5,7 @@ import (
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/go-chi/render"
 	"github.com/go-playground/validator/v10"
+	"github.com/goocarry/rest-ultimate/internal/storage"
 
 	"github.com/goocarry/rest-ultimate/internal/lib/api/response"
 	"github.com/goocarry/rest-ultimate/internal/lib/logger/sl"
@@ -21,12 +22,7 @@ type Response struct {
 	response.Response
 }
 
-//go:generate go run github.com/vektra/mockery/v2@v2.28.2 --name=URLSaver
-type Register interface {
-	RegisterUser(userToSave string) (int64, error)
-}
-
-func New(log *slog.Logger, userSaver Register) http.HandlerFunc {
+func New(log *slog.Logger, userSaver storage.Storage) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		const op = "handlers.user.save.New"
 
@@ -66,7 +62,10 @@ func New(log *slog.Logger, userSaver Register) http.HandlerFunc {
 			return
 		}
 
-		id, err := userSaver.RegisterUser(req.TgUserId)
+		user := storage.User{
+			TgUserId: req.TgUserId,
+		}
+		id, err := userSaver.User().RegisterUser(user)
 		if err != nil {
 			l.Error("failed to save user", sl.Err(err))
 

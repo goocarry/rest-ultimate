@@ -4,9 +4,10 @@ import (
 	"context"
 	"github.com/goocarry/rest-ultimate/internal/config"
 	"github.com/goocarry/rest-ultimate/internal/http-server/handlers/user"
-	mwLog "github.com/goocarry/rest-ultimate/internal/http-server/middleware/logger"
+	mwLogger "github.com/goocarry/rest-ultimate/internal/http-server/middleware/logger"
 	"github.com/goocarry/rest-ultimate/internal/lib/logger/sl"
 	"github.com/goocarry/rest-ultimate/internal/storage/sqlite"
+	"github.com/goocarry/rest-ultimate/internal/telegrambot"
 	"log/slog"
 	"net/http"
 	"os"
@@ -32,12 +33,20 @@ func main() {
 		os.Exit(1)
 	}
 
-	_ = storage
+	telegramBot, err := telegrambot.NewTelegramBot(cfg.TelegramBotToken, storage, log)
+	if err != nil {
+		log.Error("cannot create Telegram bot", sl.Err(err))
+		os.Exit(1)
+	}
+
+	go func() {
+		telegramBot.Start()
+	}()
 
 	router := chi.NewRouter()
 	router.Use(middleware.RequestID)
 	router.Use(middleware.Logger)
-	router.Use(mwLog.New(log))
+	router.Use(mwLogger.New(log))
 	router.Use(middleware.Recoverer)
 
 	router.Route("/user", func(r chi.Router) {
